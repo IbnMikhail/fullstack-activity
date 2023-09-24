@@ -1,127 +1,120 @@
-import { useEffect, useState } from "react";
-import "./App.css";
+import { useEffect, useRef, useState } from "react";
+import './App.css';
+
 
 function App() {
+  const taskRef = useRef();
+
+
   const [todos, setTodos] = useState([]);
-  const [task, setTask] = useState("");
+  const [taskInputValue, setTaskInputValue] = useState("");
 
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchTodos() {
       try {
-        //Fetching code here to set our todos
-        const response = await fetch("http://localhost:3000/api/todos");
+        // Make a fetch GET request to your API endpoint
+        const response = await fetch("http://localhost:8000/api/todos");
+        
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
         const data = await response.json();
         setTodos(data);
       } catch (error) {
-        console.log("Error occured: " + error);
+        console.error('Error fetching data:', error);
       }
-    };
+    }
+    fetchTodos();
+  }, []);   
 
-    fetchData();
-  }, []);
-
-  // This function fetches the todos from the backend
-  const fetchAndSetTodos = async () => {
-    //Fetching code here to set our todos
-    const response = await fetch("http://localhost:3000/api/todos");
-    const data = await response.json();
-    setTodos(data);
-  };
-
-  // This function helps to add the todo task to the list of todos
-  const handleAddTodoSubmit = async (event) => {
+  async function handleAddTodoSubmit(event) {
     event.preventDefault();
+    try{
+        const response = await fetch("http://localhost:8000/api/todos2", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            task: taskInputValue,
+            is_completed: false
+          }),
+        });
+        const data = await response.json()
 
-    if (task == "") {
-      throw new Error("Sorry, you can not create empty todo");
+      // Clear the input field after adding the task
+      setTaskInputValue("");
+      // setTodos((oldTodos) => ([...oldTodos, ...data]))
+      setTodos((todos) => todos.concat(data));
+       } catch (error) {
+    
     }
+  }
 
+  async function deleteItem(id) {
     try {
-      const response = await fetch("http://localhost:3000/api/todos2", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          task: task,
-          is_completed: false,
-        }),
+      const response = await fetch(`http://localhost:8000/api/todos2/${id}`, {
+        method: "DELETE",
       });
-
-      // get response in json
-      const data = await response.json();
-
-      // Set the todos after it had been returned
-      setTodos((oldTodos) => [...oldTodos, ...data]);
-      //console.log(data);
-      // setting data
-    } catch (error) {
-      console.log("Adding to todo error occured: " + error);
-    }
-  };
-
-  // This function helps to add the todo task to the list of todos
-  const handleTodoDelete = async (todoId) => {
-    try {
-      const response = await fetch(
-        `http://localhost:3000/api/todos/delete/${todoId}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (response) {
-        // Set fetch and set the remaining todos
-        fetchAndSetTodos();
+  
+      if (response.ok) {
+        // Remove the deleted item from the local state (todos)
+        setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
+      } else {
+        console.error("Failed to delete todo");
       }
     } catch (error) {
-      console.log("Adding to todo error occured: " + error);
+      console.error("Error deleting todo:", error);
     }
-  };
+  }
+  
 
-  return (
-    <>
-      <div>
-        <h1 className="text-green-500 font-semibold text-2xl mt-4 mb-3">
-          To-do list
-        </h1>
-        <form onSubmit={handleAddTodoSubmit}>
-          <input
-            type="text"
-            placeholder="Enter todo"
-            onChange={(event) => setTask(event.target.value)}
-            value={task}
-            className="bg-slate-500 text-white font-bold placeholder:text-green-200 border-2 rounded-xl p-2 border-solid border-black"
-          />
-          <button
-            type="submit"
-            className="font-bold ml-1 bg-slate-500 rounded-lg p-2 text-white"
-          >
-            Add
-          </button>
-        </form>
-        <ul className="mt-2">
-          {todos.length > 0 ? (
-            todos.map((todo, i) => (
-              <li key={i} className="m-2 p-2 border border-t-2">
-                <input type="checkbox" className="mr-1" />
-                Id-{todo.id} {todo.task}
-                <button
-                  onClick={() => handleTodoDelete(todo.id)}
-                  type="button"
-                  className="ml-2 font-bold  bg-red-500 rounded-lg p-2 text-white"
-                >
-                  Delete
-                </button>
-              </li>
-            ))
-          ) : (
-            <h1>Nothing found yet</h1>
-          )}
-        </ul>
-      </div>
-    </>
-  );
+  return (    
+    <div className="max-w-xl mx-auto p-4">
+  <h1 className="text-blue-500 font-semibold text-4xl mt-4 mb-6">To-do List</h1>
+  <form onSubmit={handleAddTodoSubmit} className="mb-4">
+    <div className="flex">
+      <input
+        className="border p-2 flex-1 rounded-l"
+        type="text"
+        name="task"
+        value={taskInputValue}
+        onChange={(event) => {
+          setTaskInputValue(event.target.value);
+        }}
+        placeholder="Add a task..."
+      />
+      <button
+        type="submit"
+        className="bg-green-500 text-white px-4 py-2 rounded-r hover:bg-green-800"
+      >
+        Add
+      </button>
+    </div>
+  </form>
+  <ul className="list-disc p-4">
+    {todos.map((todo, i) => (
+      <li key={i} className="flex items-center mb-2">
+        <input
+          type="checkbox"
+          className="mr-2 form-checkbox h-5 w-5 text-green-500"
+        />
+        <span className="flex-1">{todo.task}</span>
+        <button
+          type="button"
+          onClick={() => deleteItem(todo.id)}
+          className="text-red-500 hover:text-red-800"
+        >
+          Delete
+        </button>
+      </li>
+    ))}
+  </ul>
+</div>
+
+  )
 }
 
-export default App;
+export default App
